@@ -1,10 +1,7 @@
 (() => {
   const button = document.querySelector('#service-record-button');
   const status = document.querySelector('#service-record-status');
-  const panel = document.querySelector('#service-record-current');
-  const audio = document.querySelector('#service-record-audio');
   const retry = document.querySelector('#service-record-retry');
-  const remove = document.querySelector('#service-record-delete');
   const endpoint = `${supabaseUrl}/rest/v1/bradymenu_service_recordings_v1`;
   let recorder = null;
   let current = null;
@@ -17,11 +14,7 @@
   }
 
   function clearCurrent() {
-    audio.pause();
-    if (current?.url) URL.revokeObjectURL(current.url);
     current = null;
-    audio.removeAttribute('src');
-    panel.hidden = true;
     retry.hidden = true;
   }
 
@@ -66,7 +59,7 @@
     if (recorder?.state === 'recording') { stop(); return; }
     if (busy) return;
     if (current && !current.saved) {
-      status.textContent = 'Retry saving or delete the current recording first.';
+      status.textContent = 'Retry saving the current recording first.';
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
@@ -96,10 +89,7 @@
         try {
           if (!item.blob.size) { status.textContent = 'No audio was captured. Please record again.'; return; }
           clearCurrent();
-          item.url = URL.createObjectURL(item.blob);
           current = item;
-          audio.src = item.url;
-          panel.hidden = false;
           status.textContent = `Saving ${item.title}…`;
           await save(item);
           status.textContent = `${item.title} recording saved.`;
@@ -144,22 +134,6 @@
       console.error(error);
       status.textContent = 'Save failed. Keep this page open and retry.';
     } finally { retry.disabled = false; }
-  };
-
-  remove.onclick = async () => {
-    if (!current || recorder) return;
-    remove.disabled = true;
-    try {
-      const response = await fetch(`${endpoint}?id=eq.${current.id}`, {
-        method: 'DELETE', headers: headers(current.id)
-      });
-      if (!response.ok) throw new Error(`Delete failed (${response.status})`);
-      clearCurrent();
-      status.textContent = 'Recording deleted.';
-    } catch (error) {
-      console.error(error);
-      status.textContent = 'Could not delete the recording. Please try again.';
-    } finally { remove.disabled = false; }
   };
 
   window.addEventListener('beforeunload', event => {

@@ -191,8 +191,7 @@
       background: #fff;
       box-shadow: 0 4px 18px rgb(15 23 42 / 25%);
     }
-    .service-record-details:has(> p:empty):has(> div[hidden]) { display: none; }
-    .service-recording audio { width: 100%; margin-top: 10px; }
+    .service-record-details:has(> p:empty):has(> button[hidden]) { display: none; }
     .service-recording p { margin: 0 0 8px; }
 
     .torah-panel {
@@ -340,7 +339,7 @@
         <option value="https://us02web.zoom.us/j/85978948713?pwd=LMmFIfaABzOyuWirX2mpnQgZNVD39E.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.08</p>
+      <p class="revision">Revision 1.09</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -361,11 +360,7 @@
         <button id="service-record-button" type="button" aria-pressed="false">Record</button>
         <div class="service-record-details">
           <p id="service-record-status" role="status"></p>
-          <div id="service-record-current" hidden>
-            <audio id="service-record-audio" controls aria-label="Play current recording"></audio>
-            <button id="service-record-retry" type="button" hidden>Retry save</button>
-            <button id="service-record-delete" type="button">Delete</button>
-          </div>
+          <button id="service-record-retry" type="button" hidden>Retry save</button>
         </div>
       </div>
 
@@ -433,6 +428,14 @@
       { id: "g3e740b7777b_0_0", page: "368", title: "Torah Blessings" },
       { id: "g3f776c0633e_0_20", page: "372", title: "Haftorah Blessings" }
     ];
+    // Slides with a red outlined passage in the Service presentation.
+    const recordableSlideIds = new Set([
+      "p", "g3eb74f277b9_0_9", "g3eb74f277b9_0_22", "g3eb74f277b9_0_32",
+      "g3eb74f277b9_0_41", "g3eb74f277b9_0_61", "g3eb74f277b9_0_69",
+      "g3eb7772bc9b_0_0", "g3eb7772bc9b_0_16", "g3eb7772bc9b_0_25",
+      "g3e705dc12d8_0_9", "g3e705dc12d8_0_18", "g3e705dc12d8_0_25",
+      "g3e705dc12d8_0_34", "g3e740b7777b_0_0", "g3f776c0633e_0_20"
+    ]);
     const app = document.querySelector(".app");
     const pageList = document.querySelector("#page-list");
     const pageFrame = document.querySelector("#page-frame");
@@ -574,6 +577,7 @@
 
     function selectSlide(button, slide) {
       window.stopServiceRecording?.();
+      serviceRecording.hidden = pageList.value !== "service-beta" || !recordableSlideIds.has(slide.id);
       document.querySelectorAll(".slide-button").forEach((item) => {
         item.classList.toggle("active", item === button);
         item.setAttribute("aria-current", item === button ? "true" : "false");
@@ -615,7 +619,7 @@
       const isHomework = selected.value === "homework";
       const isTorahPortion = selected.value === "torah-portion";
       app.classList.toggle("service-mode", isService);
-      serviceRecording.hidden = !isServiceBeta;
+      serviceRecording.hidden = true;
       pageFrame.hidden = isHomework || isTorahPortion;
       homeworkPanel.hidden = !isHomework;
       torahPanel.hidden = !isTorahPortion;
@@ -641,6 +645,6 @@
       }
     });
   </script>
-  <script src="service-recordings.js"></script>
+  <script src="service-recordings.js?v=1.09"></script>
 </body>
 </html>
