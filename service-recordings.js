@@ -4,6 +4,8 @@
   let recorder = null;
   let busy = false;
   let timer;
+  let silenceCheck;
+  let audioContext;
 
   function headers(id, extra = {}) {
     return { ...supabaseHeaders, 'x-recording-id': id, ...extra };
@@ -47,6 +49,7 @@
       button.disabled = true;
       recorder.stop();
       clearTimeout(timer);
+      clearInterval(silenceCheck);
     }
   }
   window.stopServiceRecording = stop;
@@ -64,6 +67,16 @@
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error('Silence detection is unavailable in this browser.');
+      audioContext = new AudioContextClass();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      await audioContext.resume();
+      if (audioContext.state !== 'running') throw new Error('Silence detection could not start.');
+      const samples = new Float32Array(analyser.fftSize);
       const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus']
         .find(value => MediaRecorder.isTypeSupported(value));
       const capture = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
@@ -72,6 +85,9 @@
       capture.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       capture.onstop = async () => {
         clearTimeout(timer);
+        clearInterval(silenceCheck);
+        audioContext?.close().catch(console.error);
+        audioContext = null;
         stream.getTracks().forEach(track => track.stop());
         recorder = null;
         busy = true;
@@ -91,10 +107,21 @@
       capture.start(1000);
       recorder = capture;
       button.disabled = false;
-      timer = setTimeout(stop, 120000);
+      let lastSoundAt = performance.now();
+      silenceCheck = setInterval(() => {
+        analyser.getFloatTimeDomainData(samples);
+        const rms = Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length);
+        const now = performance.now();
+        if (rms >= 0.012) lastSoundAt = now;
+        else if (now - lastSoundAt >= 10000) stop();
+      }, 250);
+      timer = setTimeout(stop, 240000);
       busy = false;
     } catch (error) {
       console.error(error);
+      clearInterval(silenceCheck);
+      audioContext?.close().catch(console.error);
+      audioContext = null;
       stream?.getTracks().forEach(track => track.stop());
       busy = false;
       button.disabled = false;
