@@ -167,8 +167,12 @@
       box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
     }
     .service-beta-panel[hidden] { display: none; }
+    .service-beta-left-rail {
+      flex: 0 0 22%;
+    }
     .service-beta-image {
-      width: 75%;
+      flex: 0 0 56%;
+      width: 56%;
       height: 100%;
       object-fit: contain;
       object-position: top left;
@@ -347,6 +351,7 @@
       }
 
       .service-beta-panel { height: calc(100vh - 20px); }
+      .service-recording button { padding: 6px; font-size: 0.8rem; }
     }
   </style>
 </head>
@@ -365,7 +370,7 @@
         <option value="https://us02web.zoom.us/j/85978948713?pwd=LMmFIfaABzOyuWirX2mpnQgZNVD39E.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.12</p>
+      <p class="revision">Revision 1.13</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -383,6 +388,7 @@
       ></iframe>
 
       <div id="service-beta-panel" class="service-beta-panel" hidden>
+        <div class="service-beta-left-rail" aria-hidden="true"></div>
         <img id="service-beta-image" class="service-beta-image" alt="">
         <div class="service-beta-rail">
           <div id="service-recording" class="service-recording" hidden>
