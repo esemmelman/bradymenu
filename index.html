@@ -142,6 +142,7 @@
     .content {
       display: flex;
       justify-content: center;
+      position: relative;
       padding: 20px;
       min-width: 0;
     }
@@ -167,6 +168,21 @@
     .homework-panel[hidden] {
       display: none;
     }
+
+    .service-recording {
+      position: absolute;
+      right: 32px;
+      bottom: 32px;
+      width: min(350px, calc(100% - 64px));
+      padding: 14px;
+      border-radius: 10px;
+      background: #fff8c5;
+      box-shadow: 0 4px 18px rgb(15 23 42 / 25%);
+    }
+    .service-recording[hidden] { display: none; }
+    .service-recording button { padding: 7px 12px; cursor: pointer; }
+    .service-recording audio { width: 100%; margin-top: 10px; }
+    .service-recording p { margin: 8px 0 0; }
 
     .torah-panel {
       width: min(100%, 900px);
@@ -306,13 +322,14 @@
         <option value="https://esemmelman.github.io/bradytimeline/">Timeline</option>
         <option value="https://esemmelman.github.io/bradytorah/" selected>Torah Reading</option>
         <option value="https://docs.google.com/presentation/d/1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI/embed?slide=id.p">Service</option>
+        <option value="service-beta">Service - Beta</option>
         <option value="https://esemmelman.github.io/Elohai-Neshama/">Elohai</option>
         <option value="torah-portion">Portion in English</option>
         <option value="https://esemmelman.github.io/bradyhaftorah/">Haftorah Reading</option>
         <option value="https://us02web.zoom.us/j/85978948713?pwd=LMmFIfaABzOyuWirX2mpnQgZNVD39E.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.05</p>
+      <p class="revision">Revision 1.06</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -328,6 +345,16 @@
         loading="eager"
         allow="camera; microphone; autoplay; fullscreen; display-capture"
       ></iframe>
+
+      <div id="service-recording" class="service-recording" hidden>
+        <button id="service-record-button" type="button" aria-pressed="false">Record</button>
+        <p id="service-record-status" role="status"></p>
+        <div id="service-record-current" hidden>
+          <audio id="service-record-audio" controls aria-label="Play current recording"></audio>
+          <button id="service-record-retry" type="button" hidden>Retry save</button>
+          <button id="service-record-delete" type="button">Delete</button>
+        </div>
+      </div>
 
       <article id="torah-panel" class="torah-panel" aria-labelledby="torah-title" hidden>
         <h1 id="torah-title">Miketz</h1>
@@ -397,6 +424,7 @@
     const pageList = document.querySelector("#page-list");
     const pageFrame = document.querySelector("#page-frame");
     const slideList = document.querySelector("#slide-list");
+    const serviceRecording = document.querySelector("#service-recording");
     const torahPanel = document.querySelector("#torah-panel");
     const torahText = document.querySelector("#torah-text");
     const homeworkPanel = document.querySelector("#homework-panel");
@@ -532,11 +560,13 @@
     }
 
     function selectSlide(button, slide) {
+      window.stopServiceRecording?.();
       document.querySelectorAll(".slide-button").forEach((item) => {
         item.classList.toggle("active", item === button);
         item.setAttribute("aria-current", item === button ? "true" : "false");
       });
       pageFrame.src = serviceUrl(slide.id);
+      window.servicePassageTitle = slide.title;
       pageFrame.title = slide.title
         ? `Service — ${slide.title}`
         : slide.page
@@ -567,10 +597,12 @@
       }
 
       selectedPageIndex = pageList.selectedIndex;
-      const isService = selected.text === "Service";
+      const isServiceBeta = selected.value === "service-beta";
+      const isService = selected.text === "Service" || isServiceBeta;
       const isHomework = selected.value === "homework";
       const isTorahPortion = selected.value === "torah-portion";
       app.classList.toggle("service-mode", isService);
+      serviceRecording.hidden = !isServiceBeta;
       pageFrame.hidden = isHomework || isTorahPortion;
       homeworkPanel.hidden = !isHomework;
       torahPanel.hidden = !isTorahPortion;
@@ -596,5 +628,6 @@
       }
     });
   </script>
+  <script src="service-recordings.js"></script>
 </body>
 </html>
