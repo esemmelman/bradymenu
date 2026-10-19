@@ -1,5 +1,10 @@
 (() => {
   const practiceButton = document.querySelector('#service-record-button');
+  const exampleButton = document.querySelector('#service-example-record-button');
+  // Dedicated Brady example; never overwrite the recording shared with Vivienne.
+  const elohaiExampleId = '734034db-ffdc-4c35-b4f3-79060784302c';
+  const originalElohaiId = '91b7e099-502a-49b1-8ddf-d70e45253b72';
+  let selectedSlideId = null;
   const playButton = document.querySelector('#service-play-button');
   const playbackPanel = document.querySelector('#service-playback');
   const status = document.querySelector('#service-playback-status');
@@ -9,7 +14,7 @@
   let discoveringDuration = false;
   const exampleIds = {
     p: '93f616e9-04a7-4954-a7d4-4177da657bcb',
-    g3eb74f277b9_0_9: '91b7e099-502a-49b1-8ddf-d70e45253b72',
+    g3eb74f277b9_0_9: elohaiExampleId,
     g3eb74f277b9_0_22: 'a8ef17bc-8fc6-473a-bcee-baf673d0a615',
     g3eb74f277b9_0_32: '0c06585c-66aa-467c-9c71-26bfc4f26085',
     g3eb74f277b9_0_61: '07b597b3-553d-4075-bf32-2e585b01d29d',
@@ -83,10 +88,12 @@
   function updateControls() {
     const active = busy || !!recorder || !!pending;
     playButton.disabled = active || !exampleAvailable;
+    exampleButton.disabled = active;
   }
 
   async function loadExample() {
     const version = ++loadVersion;
+    const requestedId = exampleId;
     exampleAvailable = false;
     audio.removeAttribute('src');
     updateControls();
@@ -94,7 +101,12 @@
     try {
       const response = await fetch(`${endpoint}?id=eq.${exampleId}&select=mime_type,audio_base64`, { headers: headers(exampleId) });
       if (!response.ok) throw new Error(`Load failed (${response.status})`);
-      const [item] = await response.json();
+      let [item] = await response.json();
+      if (!item && requestedId === elohaiExampleId) {
+        const fallback = await fetch(`${endpoint}?id=eq.${originalElohaiId}&select=mime_type,audio_base64`, { headers: headers(originalElohaiId) });
+        if (!fallback.ok) throw new Error(`Load failed (${fallback.status})`);
+        [item] = await fallback.json();
+      }
       if (version !== loadVersion) return;
       exampleAvailable = !!item;
       if (item) audio.src = `data:${item.mime_type};base64,${item.audio_base64}`;
@@ -108,6 +120,8 @@
   }
 
   window.showServicePlayback = slideId => {
+    selectedSlideId = slideId;
+    exampleButton.hidden = slideId !== 'g3eb74f277b9_0_9';
     exampleId = exampleIds[slideId] || null;
     playbackPanel.hidden = !exampleId;
     resetPlayback();
@@ -171,8 +185,10 @@
     button.disabled = true;
     button.textContent = 'Saving…';
     try {
+      const savedExample = pending.id === elohaiExampleId;
       await saveWithRetry(pending);
       pending = null;
+      if (savedExample && exampleId === elohaiExampleId) await loadExample();
       button.textContent = 'Record';
     } catch (error) {
       console.error(error);
@@ -194,7 +210,7 @@
   }
   window.stopServiceRecording = () => { stop(); resetPlayback(); };
 
-  async function startRecording() {
+  async function startRecording(replaceExample = false) {
     if (recorder?.state === 'recording') { stop(); return; }
     if (busy) return;
     if (pending) { await savePending(); return; }
@@ -209,7 +225,7 @@
     button.disabled = true;
     button.textContent = 'Stop Recording';
     button.setAttribute('aria-pressed', 'true');
-    const item = { id: crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
+    const item = { id: replaceExample ? elohaiExampleId : crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -276,7 +292,10 @@
       updateControls();
     }
   }
-  practiceButton.onclick = startRecording;
+  practiceButton.onclick = () => startRecording();
+  exampleButton.onclick = () => {
+    if (selectedSlideId === 'g3eb74f277b9_0_9') startRecording(true);
+  };
 
   window.addEventListener('beforeunload', event => {
     if (recorder || busy || pending) {
