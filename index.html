@@ -169,6 +169,10 @@
     .service-beta-panel[hidden] { display: none; }
     .service-beta-left-rail {
       flex: 0 0 22%;
+      display: grid;
+      place-items: start center;
+      padding-top: 35px;
+      min-width: 0;
     }
     .service-beta-image {
       flex: 0 0 56%;
@@ -183,7 +187,7 @@
       flex: 1;
       place-items: start center;
       min-width: 0;
-      padding-top: 15px;
+      padding-top: 35px;
     }
 
     .homework-panel {
@@ -209,6 +213,14 @@
     }
     .service-recording[hidden] { display: none; }
     .service-recording button { padding: 7px 12px; cursor: pointer; }
+    .service-playback { max-width: 100%; text-align: center; }
+    .service-playback[hidden] { display: none; }
+    .service-playback button { padding: 7px 12px; cursor: pointer; }
+    .service-play-button-wrap { display: inline-block; padding: 5px; border-radius: 10px; background: #fff8c5; box-shadow: 0 4px 18px rgb(15 23 42 / 25%); }
+    .service-playback-bar { width: 100%; margin-top: 12px; padding: 0 8px; box-sizing: border-box; color: white; font-size: 0.8rem; }
+    .service-playback-bar[hidden] { display: none; }
+    .service-playback-bar input { display: block; width: 100%; margin: 0 0 5px; accent-color: #e5bd29; cursor: pointer; }
+    .service-playback p { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
     .torah-panel {
       width: min(100%, 900px);
@@ -357,7 +369,7 @@
         <option value="https://us02web.zoom.us/j/85978948713?pwd=LMmFIfaABzOyuWirX2mpnQgZNVD39E.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.16</p>
+      <p class="revision">Revision 1.17</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -375,11 +387,22 @@
       ></iframe>
 
       <div id="service-beta-panel" class="service-beta-panel" hidden>
-        <div class="service-beta-left-rail" aria-hidden="true"></div>
-        <img id="service-beta-image" class="service-beta-image" alt="">
-        <div class="service-beta-rail">
+        <div class="service-beta-left-rail">
           <div id="service-recording" class="service-recording" hidden>
             <button id="service-record-button" type="button" aria-pressed="false">Record</button>
+          </div>
+        </div>
+        <img id="service-beta-image" class="service-beta-image" alt="">
+        <div class="service-beta-rail">
+          <div id="service-playback" class="service-playback" hidden>
+            <div class="service-play-button-wrap">
+              <button id="service-play-button" type="button" disabled>Play</button>
+            </div>
+            <div id="service-playback-bar" class="service-playback-bar" hidden>
+              <input id="service-playback-seek" type="range" min="0" max="0" value="0" step="0.1" aria-label="Recording position" disabled>
+              <span id="service-playback-time">0:00 / 0:00</span>
+            </div>
+            <p id="service-playback-status" role="status"></p>
           </div>
         </div>
       </div>
@@ -619,6 +642,7 @@
         pageFrame.src = serviceUrl(slide.id);
       }
       window.servicePassageTitle = slide.title;
+      window.showServicePlayback?.(isServiceBeta ? slide.id : null);
       pageFrame.title = slide.title
         ? `Service — ${slide.title}`
         : slide.page
@@ -650,6 +674,7 @@
 
       selectedPageIndex = pageList.selectedIndex;
       const isServiceBeta = selected.value === "service-beta";
+      window.showServicePlayback?.(false);
       const isService = selected.text === "Service" || isServiceBeta;
       const isHomework = selected.value === "homework";
       const isTorahPortion = selected.value === "torah-portion";
@@ -681,6 +706,6 @@
       }
     });
   </script>
-  <script src="service-recordings.js?v=1.15"></script>
+  <script src="service-recordings.js?v=1.17"></script>
 </body>
 </html>

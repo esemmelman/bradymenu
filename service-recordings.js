@@ -1,11 +1,132 @@
 (() => {
-  const button = document.querySelector('#service-record-button');
+  const practiceButton = document.querySelector('#service-record-button');
+  const playButton = document.querySelector('#service-play-button');
+  const playbackPanel = document.querySelector('#service-playback');
+  const status = document.querySelector('#service-playback-status');
+  const playbackBar = document.querySelector('#service-playback-bar');
+  const seek = document.querySelector('#service-playback-seek');
+  const playbackTime = document.querySelector('#service-playback-time');
+  let discoveringDuration = false;
+  const exampleIds = {
+    p: '93f616e9-04a7-4954-a7d4-4177da657bcb',
+    g3eb74f277b9_0_9: '91b7e099-502a-49b1-8ddf-d70e45253b72',
+    g3eb74f277b9_0_22: 'a8ef17bc-8fc6-473a-bcee-baf673d0a615',
+    g3eb74f277b9_0_32: '0c06585c-66aa-467c-9c71-26bfc4f26085',
+    g3eb74f277b9_0_61: '07b597b3-553d-4075-bf32-2e585b01d29d',
+    g3eb7772bc9b_0_0: '71c6e513-fad6-4e01-a153-a24a40bad387',
+    g3eb7772bc9b_0_16: '44e527fe-f365-43f7-b560-cd6ca244019c',
+    g3e705dc12d8_0_9: 'fc76c910-a780-48b1-b0d4-e558bacbf044',
+    g3e705dc12d8_0_18: '6828cb21-d6c3-48c4-a1a9-88604880aed9',
+    g3e705dc12d8_0_25: '904ae9ec-dc5e-4233-973f-941e7e68ed50',
+    g3e705dc12d8_0_34: '31e56364-779e-4a18-a462-a9783c582f46',
+    g3e740b7777b_0_0: '03b51148-405b-4ab7-a384-5502dff59185',
+    g3f776c0633e_0_20: 'd06cfd2d-e636-4d2d-b44e-ed00ade3d3c5'
+  };
+  let exampleId = null;
+  const audio = new Audio();
+  const button = practiceButton;
+  let exampleAvailable = false;
+  let loadVersion = 0;
   const endpoint = `${supabaseUrl}/rest/v1/bradymenu_service_recordings_v1`;
   let recorder = null;
   let busy = false;
   let timer;
   let silenceCheck;
   let audioContext;
+  let pending = null;
+
+  function resetPlayback() {
+    discoveringDuration = false;
+    audio.pause();
+    audio.currentTime = 0;
+    playButton.textContent = 'Play';
+    playbackBar.hidden = true;
+    updateProgress();
+  }
+
+  function formatTime(value) {
+    const seconds = Number.isFinite(value) ? Math.floor(value) : 0;
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  function updateProgress() {
+    const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    seek.max = duration;
+    seek.value = discoveringDuration ? 0 : audio.currentTime;
+    seek.disabled = duration <= 0;
+    playbackTime.textContent = `${formatTime(discoveringDuration ? 0 : audio.currentTime)} / ${formatTime(duration)}`;
+    seek.setAttribute('aria-valuetext', playbackTime.textContent);
+  }
+
+  seek.oninput = () => {
+    if (!seek.disabled) audio.currentTime = Number(seek.value);
+    updateProgress();
+  };
+  audio.onloadedmetadata = () => {
+    // MediaRecorder WebM files can omit duration; seeking to the end discovers it.
+    if (audio.duration === Infinity) {
+      discoveringDuration = true;
+      audio.currentTime = 1e101;
+    }
+    updateProgress();
+  };
+  audio.ontimeupdate = () => {
+    if (discoveringDuration && Number.isFinite(audio.duration)) {
+      discoveringDuration = false;
+      audio.currentTime = 0;
+    }
+    updateProgress();
+  };
+  audio.ondurationchange = updateProgress;
+  audio.onplay = () => { playbackBar.hidden = false; playButton.textContent = 'Pause'; };
+  audio.onpause = () => { playButton.textContent = 'Play'; };
+
+  function updateControls() {
+    const active = busy || !!recorder || !!pending;
+    playButton.disabled = active || !exampleAvailable;
+  }
+
+  async function loadExample() {
+    const version = ++loadVersion;
+    exampleAvailable = false;
+    audio.removeAttribute('src');
+    updateControls();
+    status.textContent = 'Loading example…';
+    try {
+      const response = await fetch(`${endpoint}?id=eq.${exampleId}&select=mime_type,audio_base64`, { headers: headers(exampleId) });
+      if (!response.ok) throw new Error(`Load failed (${response.status})`);
+      const [item] = await response.json();
+      if (version !== loadVersion) return;
+      exampleAvailable = !!item;
+      if (item) audio.src = `data:${item.mime_type};base64,${item.audio_base64}`;
+      status.textContent = item ? '' : 'No example recording is available yet.';
+    } catch (error) {
+      if (version !== loadVersion) return;
+      console.error(error);
+      status.textContent = 'Could not load the example. Reopen this passage to retry.';
+    }
+    updateControls();
+  }
+
+  window.showServicePlayback = slideId => {
+    exampleId = exampleIds[slideId] || null;
+    playbackPanel.hidden = !exampleId;
+    resetPlayback();
+    if (exampleId) loadExample();
+    else ++loadVersion;
+  };
+  playButton.onclick = async () => {
+    if (!audio.paused) { audio.pause(); playButton.textContent = 'Play'; return; }
+    try {
+      await audio.play();
+      playbackBar.hidden = false;
+      playButton.textContent = 'Pause';
+    } catch (error) {
+      console.error(error);
+      status.textContent = 'Playback failed. Press Play to retry.';
+    }
+  };
+  audio.onended = resetPlayback;
 
   function headers(id, extra = {}) {
     return { ...supabaseHeaders, 'x-recording-id': id, ...extra };
@@ -21,9 +142,9 @@
   }
 
   async function save(item) {
-    const response = await fetch(`${endpoint}?on_conflict=id`, {
+    const response = await fetch(`${endpoint}?on_conflict=id&select=id`, {
       method: 'POST',
-      headers: headers(item.id, { Prefer: 'resolution=merge-duplicates' }),
+      headers: headers(item.id, { Prefer: 'resolution=merge-duplicates,return=representation' }),
       body: JSON.stringify({
         id: item.id,
         name: 'Brady',
@@ -34,6 +155,8 @@
       })
     });
     if (!response.ok) throw new Error(`Save failed (${response.status})`);
+    const [saved] = await response.json();
+    if (saved?.id !== item.id) throw new Error('Save was not confirmed');
   }
 
   async function saveWithRetry(item) {
@@ -41,6 +164,24 @@
       await save(item);
     } catch {
       await save(item);
+    }
+  }
+
+  async function savePending() {
+    busy = true;
+    button.disabled = true;
+    button.textContent = 'Saving…';
+    try {
+      await saveWithRetry(pending);
+      pending = null;
+      button.textContent = 'Record';
+    } catch (error) {
+      console.error(error);
+      button.textContent = 'Retry save';
+    } finally {
+      busy = false;
+      button.disabled = false;
+      updateControls();
     }
   }
 
@@ -52,18 +193,24 @@
       clearInterval(silenceCheck);
     }
   }
-  window.stopServiceRecording = stop;
+  window.stopServiceRecording = () => { stop(); resetPlayback(); };
 
-  button.onclick = async () => {
+  async function startRecording() {
     if (recorder?.state === 'recording') { stop(); return; }
     if (busy) return;
+    if (pending) { await savePending(); return; }
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      status.textContent = 'Audio recording is unavailable in this browser.';
       return;
     }
     busy = true;
+    resetPlayback();
+    ++loadVersion;
+    updateControls();
     button.disabled = true;
     button.textContent = 'Stop Recording';
     button.setAttribute('aria-pressed', 'true');
+    const item = { id: crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -81,7 +228,6 @@
         .find(value => MediaRecorder.isTypeSupported(value));
       const capture = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
       const chunks = [];
-      const item = { id: crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
       capture.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       capture.onstop = async () => {
         clearTimeout(timer);
@@ -94,13 +240,13 @@
         button.textContent = 'Record';
         button.setAttribute('aria-pressed', 'false');
         item.blob = new Blob(chunks, { type: capture.mimeType || type || 'audio/webm' });
-        try {
-          if (item.blob.size) await saveWithRetry(item);
-        } catch (error) {
-          console.error(error);
-        } finally {
+        if (item.blob.size) {
+          pending = item;
+          await savePending();
+        } else {
           busy = false;
           button.disabled = false;
+          updateControls();
         }
       };
       capture.onerror = stop;
@@ -127,11 +273,14 @@
       button.disabled = false;
       button.textContent = 'Record';
       button.setAttribute('aria-pressed', 'false');
+      status.textContent = 'Recording could not start. Check microphone permission and try again.';
+      updateControls();
     }
-  };
+  }
+  practiceButton.onclick = startRecording;
 
   window.addEventListener('beforeunload', event => {
-    if (recorder || busy) {
+    if (recorder || busy || pending) {
       event.preventDefault();
       event.returnValue = '';
     }
