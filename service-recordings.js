@@ -1,10 +1,8 @@
 (() => {
   const practiceButton = document.querySelector('#service-record-button');
-  const exampleButton = document.querySelector('#service-example-record-button');
   // Dedicated Brady example; never overwrite the recording shared with Vivienne.
   const elohaiExampleId = '734034db-ffdc-4c35-b4f3-79060784302c';
   const originalElohaiId = '91b7e099-502a-49b1-8ddf-d70e45253b72';
-  let selectedSlideId = null;
   const playButton = document.querySelector('#service-play-button');
   const playbackPanel = document.querySelector('#service-playback');
   const status = document.querySelector('#service-playback-status');
@@ -88,7 +86,6 @@
   function updateControls() {
     const active = busy || !!recorder || !!pending;
     playButton.disabled = active || !exampleAvailable;
-    exampleButton.disabled = active;
   }
 
   async function loadExample() {
@@ -120,8 +117,6 @@
   }
 
   window.showServicePlayback = slideId => {
-    selectedSlideId = slideId;
-    exampleButton.hidden = slideId !== 'g3eb74f277b9_0_9';
     exampleId = exampleIds[slideId] || null;
     playbackPanel.hidden = !exampleId;
     resetPlayback();
@@ -210,7 +205,7 @@
   }
   window.stopServiceRecording = () => { stop(); resetPlayback(); };
 
-  async function startRecording(replaceExample = false) {
+  async function startRecording() {
     if (recorder?.state === 'recording') { stop(); return; }
     if (busy) return;
     if (pending) { await savePending(); return; }
@@ -225,7 +220,7 @@
     button.disabled = true;
     button.textContent = 'Stop Recording';
     button.setAttribute('aria-pressed', 'true');
-    const item = { id: replaceExample ? elohaiExampleId : crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
+    const item = { id: crypto.randomUUID(), title: window.servicePassageTitle, start: new Date().toISOString() };
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -293,9 +288,6 @@
     }
   }
   practiceButton.onclick = () => startRecording();
-  exampleButton.onclick = () => {
-    if (selectedSlideId === 'g3eb74f277b9_0_9') startRecording(true);
-  };
 
   window.addEventListener('beforeunload', event => {
     if (recorder || busy || pending) {

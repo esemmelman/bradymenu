@@ -212,8 +212,6 @@
       box-shadow: 0 4px 18px rgb(15 23 42 / 25%);
     }
     .service-recording[hidden] { display: none; }
-    #service-example-record-button { display: block; margin-top: 8px; }
-    #service-example-record-button[hidden] { display: none; }
     .service-recording button { padding: 7px 12px; cursor: pointer; }
     .service-playback { max-width: 100%; text-align: center; }
     .service-playback[hidden] { display: none; }
@@ -371,7 +369,7 @@
         <option value="https://us02web.zoom.us/j/85978948713?pwd=LMmFIfaABzOyuWirX2mpnQgZNVD39E.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.20</p>
+      <p class="revision">Revision 1.21</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -392,7 +390,6 @@
         <div class="service-beta-left-rail">
           <div id="service-recording" class="service-recording" hidden>
             <button id="service-record-button" type="button" aria-pressed="false">Record</button>
-            <button id="service-example-record-button" type="button" hidden>Record example</button>
           </div>
         </div>
         <img id="service-beta-image" class="service-beta-image" alt="">
@@ -709,6 +706,6 @@
       }
     });
   </script>
-  <script src="service-recordings.js?v=1.20"></script>
+  <script src="service-recordings.js?v=1.21"></script>
 </body>
 </html>
